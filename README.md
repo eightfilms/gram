@@ -1,6 +1,6 @@
 # Gram
 
-Gram is a Zig port of the Kilo editor, written in C.
+Gram is a Zig port of the [Kilo editor](https://github.com/antirez/kilo) which was written in C.
 
 Gram has simple syntax highlighting for Zig just as Kilo does for C/C++.
 
@@ -9,7 +9,7 @@ There are some unsupported features (non-prints), but this tries to stay true to
 ## Usage
 
 ```sh
-$ gram [file_name]
+gram [file_name]
 ```
 
 This was written in a personal endeavour to learn Zig and may, like the original kilo,

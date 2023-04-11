@@ -870,7 +870,7 @@ const Editor = struct {
 
 pub fn main() !void {
     var args = std.process.args();
-    _ = args.next(); // ignore self, then read file paths
+    _ = args.next(); // ignore self, then read file name
     var file_path = args.next() orelse {
         std.debug.print("Usage: gram [file_name]\n\n", .{});
         return error.NoFileName;
