@@ -6,6 +6,14 @@ Gram has primitive search support and simple syntax highlighting for Zig just as
 
 There are some unsupported features (non-prints), but this implementation tries to stay true to the original as much as possible.
 
+## Build
+
+Gram is built on `v0.11.0-dev.2227+f9b582950`.
+
+```sh
+zig build -Doptimize=ReleaseSafe
+```
+
 ## Usage
 
 ```sh
