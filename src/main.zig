@@ -301,7 +301,6 @@ const Editor = struct {
         var it = std.mem.split(u8, file_bytes, "\n");
 
         while (it.next()) |line| {
-            if (std.mem.eql(u8, line, "")) break;
             try self.insertRow(i, line);
             i += 1;
         }
