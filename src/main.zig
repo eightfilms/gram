@@ -8,9 +8,9 @@ const ascii = std.ascii;
 
 const ArrayList = std.ArrayList;
 
-const KILO_QUIT_TIMES = 3;
-const KILO_QUERY_LEN = 256;
-const KILO_VERSION = "0.1";
+const GRAM_QUIT_TIMES = 3;
+const GRAM_QUERY_LEN = 256;
+const GRAM_VERSION = "0.1";
 
 const SEPARATORS = " ,.()+-/*=~%[];";
 
@@ -84,7 +84,7 @@ const Editor = struct {
     rows: ArrayList(Row),
     c: [1]u8,
     dirty: bool = false,
-    quit_times: u3 = KILO_QUIT_TIMES,
+    quit_times: u3 = GRAM_QUIT_TIMES,
     raw_mode: bool = false,
     syntax: ?Syntax = Syntax.zig,
     orig_termios: os.termios = undefined,
@@ -188,7 +188,7 @@ const Editor = struct {
     }
 
     fn find(self: *Self) !void {
-        var query: [KILO_QUERY_LEN]u8 = mem.zeroes([KILO_QUERY_LEN]u8);
+        var query: [GRAM_QUERY_LEN]u8 = mem.zeroes([GRAM_QUERY_LEN]u8);
         var qlen: usize = 0;
         var last_match: ?usize = null; // Last line where a match was found. null for none.
         var find_direction: FindDirection = .None;
@@ -612,7 +612,7 @@ const Editor = struct {
             else => try self.insertChar(c),
         }
 
-        self.quit_times = KILO_QUIT_TIMES; // Reset it to the original value.
+        self.quit_times = GRAM_QUIT_TIMES; // Reset it to the original value.
     }
 
     // Insert 'c' at the current prompt position.
@@ -686,7 +686,7 @@ const Editor = struct {
                 if (self.rows.items.len == 0 and y == self.screenrows / 3) {
                     var buf: [32]u8 = undefined;
 
-                    var welcome = try std.fmt.bufPrint(&buf, "Gram editor -- version {s}\x1b[0K\r\n", .{KILO_VERSION});
+                    var welcome = try std.fmt.bufPrint(&buf, "Gram editor -- version {s}\x1b[0K\r\n", .{GRAM_VERSION});
                     var padding: usize = if (welcome.len > self.screencols) 0 else (self.screencols - welcome.len) / 2;
                     for (0..padding) |_| try ab.appendSlice(" ");
                     try ab.appendSlice(welcome);
@@ -714,7 +714,7 @@ const Editor = struct {
                                 try ab.appendSlice(row.render[start + j .. start + j + 1]);
                             },
                             else => {
-                                var color = @enumToInt(hl); //convenient
+                                var color = @enumToInt(hl);
                                 if (color != current_color) {
                                     var buf: [16]u8 = undefined;
 
