@@ -94,7 +94,7 @@ const Editor = struct {
     col_offset: usize = 0,
     screenrows: u16 = 0,
     screencols: u16 = 0,
-    status_message: [80]u8 = undefined,
+    status_message: ArrayList(u8),
 
     fn init(allocator: mem.Allocator) !Self {
         return Self{
@@ -102,6 +102,7 @@ const Editor = struct {
             .file_path = undefined,
             .c = [1]u8{0},
             .rows = ArrayList(Row).init(allocator),
+            .status_message = try ArrayList(u8).initCapacity(allocator, 80),
         };
     }
 
@@ -735,11 +736,10 @@ const Editor = struct {
         // Create a two status rows status. First row:
         try ab.appendSlice("\x1b[0K");
         try ab.appendSlice("\x1b[7m");
-        var status: [80]u8 = undefined;
         var rstatus: [80]u8 = undefined;
         var modified: []const u8 = if (self.dirty) "(modified)" else "";
 
-        _ = try std.fmt.bufPrint(&status, "{s} - {d} lines {s}", .{
+        var status = try std.fmt.allocPrint(self.allocator, "{s} - {d} lines {s}", .{
             self.file_path,
             self.rows.items.len,
             modified,
@@ -749,7 +749,7 @@ const Editor = struct {
             self.row_offset + self.cy + 1,
             self.rows.items.len,
         });
-        try ab.appendSlice(&status);
+        try ab.appendSlice(status[0..status.len]);
 
         for (len..self.screencols) |_| {
             if (self.screencols - len == rstatus.len) {
@@ -763,7 +763,7 @@ const Editor = struct {
 
         // Second row
         try ab.appendSlice("\x1b[0K");
-        try ab.appendSlice(&self.status_message);
+        try ab.appendSlice(self.status_message.items);
 
         // Draw cursor
         var buf: [32]u8 = undefined;
@@ -863,8 +863,9 @@ const Editor = struct {
     }
 
     fn setStatusMessage(self: *Self, comptime format: []const u8, args: anytype) !void {
-        self.status_message = undefined;
-        _ = try std.fmt.bufPrint(&self.status_message, format[0..std.math.min(80, format.len)], args);
+        self.status_message.clearRetainingCapacity();
+        var buf = try std.fmt.allocPrint(self.allocator, format, args);
+        try self.status_message.appendSlice(buf);
     }
 };
 
