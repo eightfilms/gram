@@ -400,15 +400,13 @@ const Editor = struct {
     fn insertRow(self: *Self, at: usize, buf: []const u8) !void {
         if (at < 0 or at > self.rows.items.len) return;
 
-        var row = try self.allocator.create(Row);
+        var row = Row{ .src = try self.allocator.dupe(u8, buf), .render = try self.allocator.alloc(u8, buf.len), .hl = try self.allocator.alloc(Highlight, buf.len) };
 
-        row.src = try self.allocator.dupe(u8, buf);
-        row.render = try self.allocator.alloc(u8, buf.len);
-        row.hl = try self.allocator.alloc(Highlight, buf.len);
         mem.set(Highlight, row.hl, Highlight.normal);
 
-        try self.updateRow(row);
-        try self.rows.insert(at, row.*);
+        try self.updateRow(&row);
+        try self.rows.insert(at, row);
+
         self.dirty = true;
     }
 
@@ -416,9 +414,7 @@ const Editor = struct {
     fn updateRow(self: *Self, row: *Row) !void {
         self.allocator.free(row.render);
 
-        row.render = try self.allocator.alloc(u8, row.src.len + 1);
-        for (0..row.src.len) |i| row.render[i] = row.src[i];
-        row.render.len = row.src.len;
+        row.render = try self.allocator.dupe(u8, row.src);
 
         try self.updateSyntax(row);
     }
