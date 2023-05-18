@@ -136,7 +136,7 @@ const Editor = struct {
 
     fn updateSyntax(self: *Self, row: *Row) !void {
         row.hl = try self.allocator.realloc(row.hl, row.render.len);
-        mem.set(Highlight, row.hl, Highlight.normal);
+        @memset(row.hl, Highlight.normal);
         var prev_sep: bool = true; // Tell the parser if 'i' points to start of word. */
         var found_quotes: bool = false;
 
@@ -144,7 +144,7 @@ const Editor = struct {
 
         for (0..row.render.len) |i| {
             if (prev_sep and i != row.render.len - 1 and row.render[i] == '/' and row.render[i + 1] == '/') {
-                mem.set(Highlight, row.hl, Highlight.comment);
+                @memset(row.hl, Highlight.comment);
                 return;
             }
 
@@ -174,7 +174,7 @@ const Editor = struct {
                         row.render[i..std.math.min(row.render.len - 1, i + keyword.len)],
                     ) and isSeparator(row.render[i + keyword.len])) {
                         prev_sep = false;
-                        std.mem.set(Highlight, row.hl[i..std.math.min(row.render.len - 1, i + keyword.len)], Highlight.number);
+                        @memset(row.hl[i..std.math.min(row.render.len - 1, i + keyword.len)], Highlight.number);
                         break :keyword_match;
                     }
                 }
@@ -269,7 +269,7 @@ const Editor = struct {
                     saved_hl_ix = current;
                     saved_hl = try self.allocator.alloc(Highlight, row.render.len);
                     mem.copy(Highlight, saved_hl.?, row.hl);
-                    mem.set(Highlight, row.hl[safe_match .. safe_match + qlen], Highlight.match);
+                    @memset(row.hl[safe_match .. safe_match + qlen], Highlight.match);
 
                     self.cy = 0;
                     self.cx = safe_match;
@@ -380,7 +380,7 @@ const Editor = struct {
         row.src = try self.allocator.realloc(row.src, old_src.len + 1);
 
         if (at > row.src.len) {
-            mem.set(u8, row.src[at .. at + 1], c);
+            @memset(row.src[at .. at + 1], c);
         } else {
             var j: usize = 0;
             for (0..row.src.len) |i| {
@@ -402,7 +402,7 @@ const Editor = struct {
 
         var row = Row{ .src = try self.allocator.dupe(u8, buf), .render = try self.allocator.alloc(u8, buf.len), .hl = try self.allocator.alloc(Highlight, buf.len) };
 
-        mem.set(Highlight, row.hl, Highlight.normal);
+        @memset(row.hl, Highlight.normal);
 
         try self.updateRow(&row);
         try self.rows.insert(at, row);
