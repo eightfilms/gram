@@ -472,7 +472,7 @@ const Editor = struct {
         _ = try os.read(os.linux.STDIN_FILENO, &self.c);
 
         switch (self.c[0]) {
-            @enumToInt(Key.esc) => {
+            @intFromEnum(Key.esc) => {
                 _ = try os.read(os.linux.STDIN_FILENO, seq[0..1]);
                 _ = try os.read(os.linux.STDIN_FILENO, seq[1..2]);
 
@@ -482,34 +482,34 @@ const Editor = struct {
                             _ = try os.read(os.linux.STDIN_FILENO, seq[2..3]);
                             if (seq[2] == '~') {
                                 switch (seq[1]) {
-                                    '1' => return @enumToInt(Key.home),
-                                    '3' => return @enumToInt(Key.del),
-                                    '4' => return @enumToInt(Key.end),
-                                    '5' => return @enumToInt(Key.page_up),
-                                    '6' => return @enumToInt(Key.page_down),
-                                    '7' => return @enumToInt(Key.home),
-                                    '8' => return @enumToInt(Key.end),
+                                    '1' => return @intFromEnum(Key.home),
+                                    '3' => return @intFromEnum(Key.del),
+                                    '4' => return @intFromEnum(Key.end),
+                                    '5' => return @intFromEnum(Key.page_up),
+                                    '6' => return @intFromEnum(Key.page_down),
+                                    '7' => return @intFromEnum(Key.home),
+                                    '8' => return @intFromEnum(Key.end),
                                     else => {},
                                 }
                             }
                         },
-                        'A' => return @enumToInt(Key.arrow_up),
-                        'B' => return @enumToInt(Key.arrow_down),
-                        'C' => return @enumToInt(Key.arrow_right),
-                        'D' => return @enumToInt(Key.arrow_left),
-                        'H' => return @enumToInt(Key.home),
-                        'F' => return @enumToInt(Key.end),
+                        'A' => return @intFromEnum(Key.arrow_up),
+                        'B' => return @intFromEnum(Key.arrow_down),
+                        'C' => return @intFromEnum(Key.arrow_right),
+                        'D' => return @intFromEnum(Key.arrow_left),
+                        'H' => return @intFromEnum(Key.home),
+                        'F' => return @intFromEnum(Key.end),
                         else => {},
                     }
                 } else if (seq[0] == 'O') {
                     switch (seq[1]) {
-                        'H' => return @enumToInt(Key.home),
-                        'F' => return @enumToInt(Key.end),
+                        'H' => return @intFromEnum(Key.home),
+                        'F' => return @intFromEnum(Key.end),
                         else => {},
                     }
                 }
 
-                return @enumToInt(Key.esc);
+                return @intFromEnum(Key.esc);
             },
             else => return self.c[0],
         }
@@ -584,7 +584,7 @@ const Editor = struct {
             },
             .ctrl_f => try self.find(),
             .backspace, .ctrl_h, .del => {
-                if (@intToEnum(Key, c) == .del) self.moveCursor(@enumToInt(Key.arrow_right));
+                if (@intToEnum(Key, c) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
                 try self.delChar();
             },
             .arrow_left, .arrow_up, .arrow_down, .arrow_right => self.moveCursor(c),
@@ -603,7 +603,7 @@ const Editor = struct {
                 var direction: Key =
                     if (pg == Key.page_up) .arrow_up else .arrow_down;
                 for (0..self.screenrows - 1) |_| {
-                    self.moveCursor(@enumToInt(direction));
+                    self.moveCursor(@intFromEnum(direction));
                 }
             },
             else => try self.insertChar(c),
@@ -711,7 +711,7 @@ const Editor = struct {
                                 try ab.appendSlice(row.render[start + j .. start + j + 1]);
                             },
                             else => {
-                                var color = @enumToInt(hl);
+                                var color = @intFromEnum(hl);
                                 if (color != current_color) {
                                     var buf: [16]u8 = undefined;
 
