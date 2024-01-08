@@ -108,8 +108,8 @@ const Editor = struct {
 
     fn getWindowSize(self: *Self) !void {
         var wsz: os.linux.winsize = undefined;
-        const fd = @bitCast(usize, @as(isize, os.linux.STDOUT_FILENO));
-        if (os.linux.syscall3(.ioctl, fd, os.linux.T.IOCGWINSZ, @ptrToInt(&wsz)) == -1 or wsz.ws_col == 0) {
+        const fd = @as(usize, @bitCast(@as(isize, os.linux.STDOUT_FILENO)));
+        if (os.linux.syscall3(.ioctl, fd, os.linux.T.IOCGWINSZ, @intFromPtr(&wsz)) == -1 or wsz.ws_col == 0) {
             _ = try os.write(os.linux.STDOUT_FILENO, "\x1b[999C\x1b[999B");
             return self.getCursorPosition();
         } else {
@@ -207,7 +207,7 @@ const Editor = struct {
             try self.refreshScreen();
 
             var c = try self.readKey();
-            switch (@enumFromInt(Key, c)) {
+            switch (@as(Key, @enumFromInt(c))) {
                 .del, .ctrl_h, .backspace => {
                     if (qlen != 0) {
                         qlen -= 1;
@@ -215,7 +215,7 @@ const Editor = struct {
                     last_match = null;
                 },
                 .enter, .esc => {
-                    if (@enumFromInt(Key, c) == .esc) {
+                    if (@as(Key, @enumFromInt(c)) == .esc) {
                         self.cx = saved_cx;
                         self.cy = saved_cy;
                         self.col_offset = saved_col_offset;
@@ -562,7 +562,7 @@ const Editor = struct {
     fn processKeypress(self: *Self) !void {
         var c = try self.readKey();
 
-        switch (@enumFromInt(Key, c)) {
+        switch (@as(Key, @enumFromInt(c))) {
             .enter => return try self.insertNewline(),
             .ctrl_c => return,
             .ctrl_q => {
@@ -584,7 +584,7 @@ const Editor = struct {
             },
             .ctrl_f => try self.find(),
             .backspace, .ctrl_h, .del => {
-                if (@enumFromInt(Key, c) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
+                if (@as(Key, @enumFromInt(c)) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
                 try self.delChar();
             },
             .arrow_left, .arrow_up, .arrow_down, .arrow_right => self.moveCursor(c),
@@ -783,7 +783,7 @@ const Editor = struct {
         var file_row = self.row_offset + self.cy;
         var file_col = self.col_offset + self.cx;
 
-        switch (@enumFromInt(Key, c)) {
+        switch (@as(Key, @enumFromInt(c))) {
             .arrow_left => {
                 if (self.cx == 0) {
                     if (self.col_offset > 0) {
