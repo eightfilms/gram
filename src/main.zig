@@ -171,10 +171,10 @@ const Editor = struct {
                     if (std.mem.eql(
                         u8,
                         keyword,
-                        row.render[i..std.math.min(row.render.len - 1, i + keyword.len)],
+                        row.render[i..@min(row.render.len - 1, i + keyword.len)],
                     ) and isSeparator(row.render[i + keyword.len])) {
                         prev_sep = false;
-                        @memset(row.hl[i..std.math.min(row.render.len - 1, i + keyword.len)], Highlight.number);
+                        @memset(row.hl[i..@min(row.render.len - 1, i + keyword.len)], Highlight.number);
                         break :keyword_match;
                     }
                 }
@@ -203,7 +203,7 @@ const Editor = struct {
 
         while (true) {
             // 49 is the amount of characters allowed for query, since our status message is capped at 80.
-            try self.setStatusMessage("Search: {s} (Use ESC/Arrows/Enter)", .{query[0..std.math.min(qlen, 49)]});
+            try self.setStatusMessage("Search: {s} (Use ESC/Arrows/Enter)", .{query[0..@min(qlen, 49)]});
             try self.refreshScreen();
 
             var c = try self.readKey();
