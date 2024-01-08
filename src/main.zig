@@ -207,7 +207,7 @@ const Editor = struct {
             try self.refreshScreen();
 
             var c = try self.readKey();
-            switch (@intToEnum(Key, c)) {
+            switch (@enumFromInt(Key, c)) {
                 .del, .ctrl_h, .backspace => {
                     if (qlen != 0) {
                         qlen -= 1;
@@ -215,7 +215,7 @@ const Editor = struct {
                     last_match = null;
                 },
                 .enter, .esc => {
-                    if (@intToEnum(Key, c) == .esc) {
+                    if (@enumFromInt(Key, c) == .esc) {
                         self.cx = saved_cx;
                         self.cy = saved_cy;
                         self.col_offset = saved_col_offset;
@@ -562,7 +562,7 @@ const Editor = struct {
     fn processKeypress(self: *Self) !void {
         var c = try self.readKey();
 
-        switch (@intToEnum(Key, c)) {
+        switch (@enumFromInt(Key, c)) {
             .enter => return try self.insertNewline(),
             .ctrl_c => return,
             .ctrl_q => {
@@ -584,7 +584,7 @@ const Editor = struct {
             },
             .ctrl_f => try self.find(),
             .backspace, .ctrl_h, .del => {
-                if (@intToEnum(Key, c) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
+                if (@enumFromInt(Key, c) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
                 try self.delChar();
             },
             .arrow_left, .arrow_up, .arrow_down, .arrow_right => self.moveCursor(c),
@@ -783,7 +783,7 @@ const Editor = struct {
         var file_row = self.row_offset + self.cy;
         var file_col = self.col_offset + self.cx;
 
-        switch (@intToEnum(Key, c)) {
+        switch (@enumFromInt(Key, c)) {
             .arrow_left => {
                 if (self.cx == 0) {
                     if (self.col_offset > 0) {
