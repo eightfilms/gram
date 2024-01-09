@@ -10,7 +10,7 @@ There are some unsupported features (non-prints), but this implementation tries 
 
 ## Build
 
-Gram is built on `v0.11.0-dev.3198+ad20236e9`.
+Gram is built on `v0.11.0`.
 
 ```sh
 zig build -Doptimize=ReleaseSafe
@@ -24,3 +24,4 @@ gram [file_name]
 
 This was written in a personal endeavour to learn Zig and may, like the original kilo,
 serve as a starting point to write other editors in Zig.
+

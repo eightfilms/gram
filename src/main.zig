@@ -108,8 +108,8 @@ const Editor = struct {
 
     fn getWindowSize(self: *Self) !void {
         var wsz: os.linux.winsize = undefined;
-        const fd = @bitCast(usize, @as(isize, os.linux.STDOUT_FILENO));
-        if (os.linux.syscall3(.ioctl, fd, os.linux.T.IOCGWINSZ, @ptrToInt(&wsz)) == -1 or wsz.ws_col == 0) {
+        const fd = @as(usize, @bitCast(@as(isize, os.linux.STDOUT_FILENO)));
+        if (os.linux.syscall3(.ioctl, fd, os.linux.T.IOCGWINSZ, @intFromPtr(&wsz)) == -1 or wsz.ws_col == 0) {
             _ = try os.write(os.linux.STDOUT_FILENO, "\x1b[999C\x1b[999B");
             return self.getCursorPosition();
         } else {
@@ -171,10 +171,10 @@ const Editor = struct {
                     if (std.mem.eql(
                         u8,
                         keyword,
-                        row.render[i..std.math.min(row.render.len - 1, i + keyword.len)],
+                        row.render[i..@min(row.render.len - 1, i + keyword.len)],
                     ) and isSeparator(row.render[i + keyword.len])) {
                         prev_sep = false;
-                        @memset(row.hl[i..std.math.min(row.render.len - 1, i + keyword.len)], Highlight.number);
+                        @memset(row.hl[i..@min(row.render.len - 1, i + keyword.len)], Highlight.number);
                         break :keyword_match;
                     }
                 }
@@ -203,11 +203,11 @@ const Editor = struct {
 
         while (true) {
             // 49 is the amount of characters allowed for query, since our status message is capped at 80.
-            try self.setStatusMessage("Search: {s} (Use ESC/Arrows/Enter)", .{query[0..std.math.min(qlen, 49)]});
+            try self.setStatusMessage("Search: {s} (Use ESC/Arrows/Enter)", .{query[0..@min(qlen, 49)]});
             try self.refreshScreen();
 
             var c = try self.readKey();
-            switch (@intToEnum(Key, c)) {
+            switch (@as(Key, @enumFromInt(c))) {
                 .del, .ctrl_h, .backspace => {
                     if (qlen != 0) {
                         qlen -= 1;
@@ -215,7 +215,7 @@ const Editor = struct {
                     last_match = null;
                 },
                 .enter, .esc => {
-                    if (@intToEnum(Key, c) == .esc) {
+                    if (@as(Key, @enumFromInt(c)) == .esc) {
                         self.cx = saved_cx;
                         self.cy = saved_cy;
                         self.col_offset = saved_col_offset;
@@ -472,7 +472,7 @@ const Editor = struct {
         _ = try os.read(os.linux.STDIN_FILENO, &self.c);
 
         switch (self.c[0]) {
-            @enumToInt(Key.esc) => {
+            @intFromEnum(Key.esc) => {
                 _ = try os.read(os.linux.STDIN_FILENO, seq[0..1]);
                 _ = try os.read(os.linux.STDIN_FILENO, seq[1..2]);
 
@@ -482,34 +482,34 @@ const Editor = struct {
                             _ = try os.read(os.linux.STDIN_FILENO, seq[2..3]);
                             if (seq[2] == '~') {
                                 switch (seq[1]) {
-                                    '1' => return @enumToInt(Key.home),
-                                    '3' => return @enumToInt(Key.del),
-                                    '4' => return @enumToInt(Key.end),
-                                    '5' => return @enumToInt(Key.page_up),
-                                    '6' => return @enumToInt(Key.page_down),
-                                    '7' => return @enumToInt(Key.home),
-                                    '8' => return @enumToInt(Key.end),
+                                    '1' => return @intFromEnum(Key.home),
+                                    '3' => return @intFromEnum(Key.del),
+                                    '4' => return @intFromEnum(Key.end),
+                                    '5' => return @intFromEnum(Key.page_up),
+                                    '6' => return @intFromEnum(Key.page_down),
+                                    '7' => return @intFromEnum(Key.home),
+                                    '8' => return @intFromEnum(Key.end),
                                     else => {},
                                 }
                             }
                         },
-                        'A' => return @enumToInt(Key.arrow_up),
-                        'B' => return @enumToInt(Key.arrow_down),
-                        'C' => return @enumToInt(Key.arrow_right),
-                        'D' => return @enumToInt(Key.arrow_left),
-                        'H' => return @enumToInt(Key.home),
-                        'F' => return @enumToInt(Key.end),
+                        'A' => return @intFromEnum(Key.arrow_up),
+                        'B' => return @intFromEnum(Key.arrow_down),
+                        'C' => return @intFromEnum(Key.arrow_right),
+                        'D' => return @intFromEnum(Key.arrow_left),
+                        'H' => return @intFromEnum(Key.home),
+                        'F' => return @intFromEnum(Key.end),
                         else => {},
                     }
                 } else if (seq[0] == 'O') {
                     switch (seq[1]) {
-                        'H' => return @enumToInt(Key.home),
-                        'F' => return @enumToInt(Key.end),
+                        'H' => return @intFromEnum(Key.home),
+                        'F' => return @intFromEnum(Key.end),
                         else => {},
                     }
                 }
 
-                return @enumToInt(Key.esc);
+                return @intFromEnum(Key.esc);
             },
             else => return self.c[0],
         }
@@ -562,7 +562,7 @@ const Editor = struct {
     fn processKeypress(self: *Self) !void {
         var c = try self.readKey();
 
-        switch (@intToEnum(Key, c)) {
+        switch (@as(Key, @enumFromInt(c))) {
             .enter => return try self.insertNewline(),
             .ctrl_c => return,
             .ctrl_q => {
@@ -584,7 +584,7 @@ const Editor = struct {
             },
             .ctrl_f => try self.find(),
             .backspace, .ctrl_h, .del => {
-                if (@intToEnum(Key, c) == .del) self.moveCursor(@enumToInt(Key.arrow_right));
+                if (@as(Key, @enumFromInt(c)) == .del) self.moveCursor(@intFromEnum(Key.arrow_right));
                 try self.delChar();
             },
             .arrow_left, .arrow_up, .arrow_down, .arrow_right => self.moveCursor(c),
@@ -603,7 +603,7 @@ const Editor = struct {
                 var direction: Key =
                     if (pg == Key.page_up) .arrow_up else .arrow_down;
                 for (0..self.screenrows - 1) |_| {
-                    self.moveCursor(@enumToInt(direction));
+                    self.moveCursor(@intFromEnum(direction));
                 }
             },
             else => try self.insertChar(c),
@@ -711,7 +711,7 @@ const Editor = struct {
                                 try ab.appendSlice(row.render[start + j .. start + j + 1]);
                             },
                             else => {
-                                var color = @enumToInt(hl);
+                                var color = @intFromEnum(hl);
                                 if (color != current_color) {
                                     var buf: [16]u8 = undefined;
 
@@ -783,7 +783,7 @@ const Editor = struct {
         var file_row = self.row_offset + self.cy;
         var file_col = self.col_offset + self.cx;
 
-        switch (@intToEnum(Key, c)) {
+        switch (@as(Key, @enumFromInt(c))) {
             .arrow_left => {
                 if (self.cx == 0) {
                     if (self.col_offset > 0) {
