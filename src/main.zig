@@ -87,7 +87,7 @@ const Editor = struct {
     quit_times: u3 = GRAM_QUIT_TIMES,
     raw_mode: bool = false,
     syntax: ?Syntax = Syntax.zig,
-    orig_termios: os.termios = undefined,
+    orig_termios: os.linux.termios = undefined,
     cx: usize = 0,
     cy: usize = 0,
     row_offset: usize = 0,
@@ -109,8 +109,13 @@ const Editor = struct {
     fn getWindowSize(self: *Self) !void {
         var wsz: os.linux.winsize = undefined;
         const fd = @as(usize, @bitCast(@as(isize, os.linux.STDOUT_FILENO)));
-        if (os.linux.syscall3(.ioctl, fd, os.linux.T.IOCGWINSZ, @intFromPtr(&wsz)) == -1 or wsz.ws_col == 0) {
-            _ = try os.write(os.linux.STDOUT_FILENO, "\x1b[999C\x1b[999B");
+        if (os.linux.ioctl(
+            fd,
+            0x5413,
+            @intFromPtr(&wsz),
+        ) == -1 or wsz.ws_col == 0) {
+            const strn = "\x1b[999C\x1b[999B";
+            _ = os.linux.write(os.linux.STDOUT_FILENO, strn, strn.len);
             return self.getCursorPosition();
         } else {
             self.screenrows = wsz.ws_row;
@@ -129,7 +134,7 @@ const Editor = struct {
         saved_hl_ix: ?usize,
     ) void {
         if (saved_hl.*) |hl| {
-            mem.copy(Highlight, self.rows.items[saved_hl_ix.?].hl, hl);
+            mem.copyForwards(Highlight, self.rows.items[saved_hl_ix.?].hl, hl);
             saved_hl.* = null;
         }
     }
@@ -196,17 +201,17 @@ const Editor = struct {
         var saved_hl: ?[]Highlight = null;
         var saved_hl_ix: ?usize = null;
 
-        var saved_cx = self.cx;
-        var saved_cy = self.cy;
-        var saved_col_offset = self.col_offset;
-        var saved_row_offset = self.row_offset;
+        const saved_cx = self.cx;
+        const saved_cy = self.cy;
+        const saved_col_offset = self.col_offset;
+        const saved_row_offset = self.row_offset;
 
         while (true) {
             // 49 is the amount of characters allowed for query, since our status message is capped at 80.
             try self.setStatusMessage("Search: {s} (Use ESC/Arrows/Enter)", .{query[0..@min(qlen, 49)]});
             try self.refreshScreen();
 
-            var c = try self.readKey();
+            const c = try self.readKey();
             switch (@as(Key, @enumFromInt(c))) {
                 .del, .ctrl_h, .backspace => {
                     if (qlen != 0) {
@@ -268,7 +273,7 @@ const Editor = struct {
 
                     saved_hl_ix = current;
                     saved_hl = try self.allocator.alloc(Highlight, row.render.len);
-                    mem.copy(Highlight, saved_hl.?, row.hl);
+                    mem.copyForwards(Highlight, saved_hl.?, row.hl);
                     @memset(row.hl[safe_match .. safe_match + qlen], Highlight.match);
 
                     self.cy = 0;
@@ -277,7 +282,7 @@ const Editor = struct {
                     self.col_offset = 0;
 
                     if (self.cx > self.screencols) {
-                        var diff = self.cx - self.screencols;
+                        const diff = self.cx - self.screencols;
                         self.cx -= diff;
                         self.col_offset += diff;
                     }
@@ -298,7 +303,7 @@ const Editor = struct {
 
         var i: usize = 0;
         // Just read the entire file into memory... what could go wrong
-        var file_bytes = try file.reader().readAllAlloc(self.allocator, std.math.maxInt(u32));
+        const file_bytes = try file.reader().readAllAlloc(self.allocator, std.math.maxInt(u32));
         var it = std.mem.split(u8, file_bytes, "\n");
 
         while (it.next()) |line| {
@@ -311,12 +316,12 @@ const Editor = struct {
 
     // Append the string 's' at the end of a row
     fn rowAppendString(self: *Self, row: *Row, s: []const u8) !void {
-        var len = row.src.len;
-        var s_len = s.len;
+        const len = row.src.len;
+        const s_len = s.len;
         row.src = try self.allocator.realloc(row.src[0..len], len + s_len);
         _ = self.allocator.resize(row.src[0..len], len + s_len);
 
-        mem.copy(u8, row.src[len .. len + s_len], s);
+        mem.copyForwards(u8, row.src[len .. len + s_len], s);
 
         try self.updateRow(row);
         self.dirty = true;
@@ -330,12 +335,12 @@ const Editor = struct {
     }
 
     fn delChar(self: *Self) !void {
-        var file_row = self.row_offset + self.cy;
+        const file_row = self.row_offset + self.cy;
         var file_col = self.col_offset + self.cx;
 
         if (file_row >= self.rows.items.len or (file_col == 0 and file_row == 0)) return;
 
-        var row = &self.rows.items[file_row];
+        const row = &self.rows.items[file_row];
         if (file_col == 0) {
             file_col = self.rows.items[file_row - 1].src.len;
             try self.rowAppendString(
@@ -348,7 +353,7 @@ const Editor = struct {
             self.cx = file_col;
 
             if (self.cx >= self.screencols) {
-                var shift: usize = self.screencols - self.cx + 1;
+                const shift: usize = self.screencols - self.cx + 1;
                 self.cx -= shift;
                 self.col_offset += shift;
             }
@@ -367,7 +372,7 @@ const Editor = struct {
     fn rowDelChar(self: *Self, row: *Row, at: usize) !void {
         if (row.src.len <= at) return;
 
-        mem.copy(u8, row.src[at..row.src.len], row.src[at + 1 .. row.src.len]);
+        mem.copyForwards(u8, row.src[at..row.src.len], row.src[at + 1 .. row.src.len]);
         try self.updateRow(row);
         row.src.len -= 1;
         self.dirty = true;
@@ -376,7 +381,7 @@ const Editor = struct {
     /// Insert a character at the specified position in a row, moving the remaining
     /// chars on the right if needed.
     fn rowInsertChar(self: *Self, row: *Row, at: usize, c: u8) !void {
-        var old_src = try self.allocator.dupe(u8, row.src);
+        const old_src = try self.allocator.dupe(u8, row.src);
         row.src = try self.allocator.realloc(row.src, old_src.len + 1);
 
         if (at > row.src.len) {
@@ -427,7 +432,7 @@ const Editor = struct {
     }
 
     fn insertNewline(self: *Self) !void {
-        var file_row = self.row_offset + self.cy;
+        const file_row = self.row_offset + self.cy;
         var file_col = self.col_offset + self.cx;
 
         if (file_row >= self.rows.items.len) {
@@ -455,7 +460,6 @@ const Editor = struct {
             }
 
             _ = self.allocator.resize(row.src, file_col);
-            // mem.copy(u8, row.src[0..file_col], new_src);
             row.*.src.len = file_col;
             // update row
             try self.updateRow(row);
@@ -469,17 +473,17 @@ const Editor = struct {
     fn readKey(self: *Self) !u8 {
         var seq = try self.allocator.alloc(u8, 3);
         defer self.allocator.free(seq);
-        _ = try os.read(os.linux.STDIN_FILENO, &self.c);
+        _ = os.linux.read(os.linux.STDIN_FILENO, &self.c, 1);
 
         switch (self.c[0]) {
             @intFromEnum(Key.esc) => {
-                _ = try os.read(os.linux.STDIN_FILENO, seq[0..1]);
-                _ = try os.read(os.linux.STDIN_FILENO, seq[1..2]);
+                _ = os.linux.read(os.linux.STDIN_FILENO, seq[0..1], 1);
+                _ = os.linux.read(os.linux.STDIN_FILENO, seq[1..2], 1);
 
                 if (seq[0] == '[') {
                     switch (seq[1]) {
                         '0'...'9' => {
-                            _ = try os.read(os.linux.STDIN_FILENO, seq[2..3]);
+                            _ = os.linux.read(os.linux.STDIN_FILENO, seq[2..3], 1);
                             if (seq[2] == '~') {
                                 switch (seq[1]) {
                                     '1' => return @intFromEnum(Key.home),
@@ -528,8 +532,8 @@ const Editor = struct {
         len = 0;
         var prev_len: usize = 0;
         for (self.rows.items) |row| {
-            mem.copy(u8, buf[prev_len .. prev_len + row.src.len], row.src);
-            mem.copy(u8, buf[prev_len + row.src.len .. prev_len + row.src.len + 1], "\n");
+            mem.copyForwards(u8, buf[prev_len .. prev_len + row.src.len], row.src);
+            mem.copyForwards(u8, buf[prev_len + row.src.len .. prev_len + row.src.len + 1], "\n");
             prev_len += row.src.len + 1;
         }
 
@@ -560,7 +564,7 @@ const Editor = struct {
     }
 
     fn processKeypress(self: *Self) !void {
-        var c = try self.readKey();
+        const c = try self.readKey();
 
         switch (@as(Key, @enumFromInt(c))) {
             .enter => return try self.insertNewline(),
@@ -575,7 +579,7 @@ const Editor = struct {
                     return;
                 }
                 self.disableRawMode() catch unreachable;
-                os.exit(0);
+                os.linux.exit(0);
             },
             .ctrl_s => {
                 self.save() catch |err| {
@@ -600,7 +604,7 @@ const Editor = struct {
                     self.cy = self.screenrows - 1;
                 }
 
-                var direction: Key =
+                const direction: Key =
                     if (pg == Key.page_up) .arrow_up else .arrow_down;
                 for (0..self.screenrows - 1) |_| {
                     self.moveCursor(@intFromEnum(direction));
@@ -614,8 +618,8 @@ const Editor = struct {
 
     // Insert 'c' at the current prompt position.
     fn insertChar(self: *Self, c: u8) !void {
-        var file_row = self.row_offset + self.cy;
-        var file_col = self.col_offset + self.cx;
+        const file_row = self.row_offset + self.cy;
+        const file_col = self.col_offset + self.cx;
 
         if (file_row >= self.rows.items.len) {
             for (self.rows.items.len..file_row + 1) |_| try self.insertRow(self.rows.items.len, "");
@@ -632,17 +636,19 @@ const Editor = struct {
         const VMIN = 5;
         const VTIME = 6;
 
-        self.orig_termios = try os.tcgetattr(os.STDIN_FILENO); // So we can restore later
+        _ = os.linux.tcgetattr(os.linux.STDIN_FILENO, &self.orig_termios); // So we can restore later
         var termios = self.orig_termios;
 
         // input modes: no break, no CR to NL, no parity check, no strip char, no start/stop output ctrl.
-        termios.iflag &= ~(os.linux.BRKINT | os.linux.ICRNL | os.linux.INPCK | os.linux.ISTRIP | os.linux.IXON);
+        termios.iflag = os.linux.tc_iflag_t{};
         // output modes: disable post processing
-        termios.oflag &= ~(os.linux.OPOST);
+        termios.oflag = os.linux.tc_oflag_t{};
         // control modes: set 8 bit chars
-        termios.cflag |= os.linux.CS8;
+        termios.cflag = os.linux.tc_cflag_t{
+            .CSIZE = os.linux.CSIZE.CS8,
+        };
         // local modes: choign off, canonical off, no extended functions, no signal chars (^Z, ^C)
-        termios.lflag &= ~(os.linux.ECHO | os.linux.ICANON | os.linux.IEXTEN | os.linux.ISIG);
+        termios.lflag = os.linux.tc_lflag_t{};
         termios.cc[VMIN] = 0;
         termios.cc[VTIME] = 1;
 
@@ -677,30 +683,30 @@ const Editor = struct {
 
         // Draw rows
         for (0..self.screenrows) |y| {
-            var file_row = self.row_offset + y;
+            const file_row = self.row_offset + y;
 
             if (file_row >= self.rows.items.len) {
                 if (self.rows.items.len == 0 and y == self.screenrows / 3) {
                     var buf: [32]u8 = undefined;
 
-                    var welcome = try std.fmt.bufPrint(&buf, "Gram editor -- version {s}\x1b[0K\r\n", .{GRAM_VERSION});
-                    var padding: usize = if (welcome.len > self.screencols) 0 else (self.screencols - welcome.len) / 2;
+                    const welcome = try std.fmt.bufPrint(&buf, "Gram editor -- version {s}\x1b[0K\r\n", .{GRAM_VERSION});
+                    const padding: usize = if (welcome.len > self.screencols) 0 else (self.screencols - welcome.len) / 2;
                     for (0..padding) |_| try ab.appendSlice(" ");
                     try ab.appendSlice(welcome);
                 } else {
                     try ab.appendSlice("~\x1b[0K\r\n");
                 }
             } else {
-                var row = &self.rows.items[file_row];
+                const row = &self.rows.items[file_row];
                 var len = if (row.render.len <= self.col_offset) 0 else row.render.len - self.col_offset;
                 var current_color: u8 = 0;
 
                 if (len > 0) {
                     if (len > self.screencols) len = self.screencols;
 
-                    var start = self.col_offset;
+                    const start = self.col_offset;
                     for (0..len) |j| {
-                        var hl = row.hl[j];
+                        const hl = row.hl[j];
                         switch (hl) {
                             Highlight.normal => {
                                 if (current_color > 0) {
@@ -711,7 +717,7 @@ const Editor = struct {
                                 try ab.appendSlice(row.render[start + j .. start + j + 1]);
                             },
                             else => {
-                                var color = @intFromEnum(hl);
+                                const color = @intFromEnum(hl);
                                 if (color != current_color) {
                                     var buf: [16]u8 = undefined;
 
@@ -733,14 +739,13 @@ const Editor = struct {
         try ab.appendSlice("\x1b[0K");
         try ab.appendSlice("\x1b[7m");
         var rstatus: [80]u8 = undefined;
-        var modified: []const u8 = if (self.dirty) "(modified)" else "";
 
         var status = try std.fmt.allocPrint(self.allocator, "{s} - {d} lines {s}", .{
             self.file_path,
             self.rows.items.len,
-            modified,
+            if (self.dirty) "(modified)" else "",
         });
-        var len = if (status.len > self.screencols) self.screencols else status.len;
+        const len = if (status.len > self.screencols) self.screencols else status.len;
         _ = try std.fmt.bufPrint(&rstatus, "{d}/{d}", .{
             self.row_offset + self.cy + 1,
             self.rows.items.len,
@@ -764,10 +769,10 @@ const Editor = struct {
         // Draw cursor
         var buf: [32]u8 = undefined;
         var cx: usize = 1;
-        var file_row = self.row_offset + self.cy;
+        const file_row = self.row_offset + self.cy;
 
         if (file_row < self.rows.items.len) {
-            var row = self.rows.items[file_row];
+            const row = self.rows.items[file_row];
             for (self.col_offset..self.col_offset + self.cx) |j| {
                 if (j < row.src.len and row.src[j] == '\t') cx += 7 - (cx % 8);
                 cx += 1;
@@ -776,7 +781,7 @@ const Editor = struct {
         try ab.appendSlice(try std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ self.cy + 1, cx }));
         try ab.appendSlice("\x1b[?25h");
 
-        _ = try os.write(os.linux.STDOUT_FILENO, ab.items);
+        _ = os.linux.write(os.linux.STDOUT_FILENO, ab.items.ptr, ab.items.len);
     }
 
     fn moveCursor(self: *Self, c: u8) void {
@@ -804,7 +809,7 @@ const Editor = struct {
             },
             .arrow_right => {
                 if (file_row < self.rows.items.len) {
-                    var row = self.rows.items[file_row];
+                    const row = self.rows.items[file_row];
 
                     if (file_col < row.src.len) {
                         if (self.cx == self.screencols - 1) self.col_offset += 1 else self.cx += 1;
@@ -833,7 +838,7 @@ const Editor = struct {
 
         file_row = self.row_offset + self.cy;
         file_col = self.col_offset + self.cx;
-        var row_len: usize = if (file_row >= self.rows.items.len) 0 else self.rows.items[file_row].src.len;
+        const row_len: usize = if (file_row >= self.rows.items.len) 0 else self.rows.items[file_row].src.len;
         if (file_col > row_len) {
             self.cx -= file_col - row_len;
 
@@ -847,10 +852,11 @@ const Editor = struct {
     fn getCursorPosition(self: *Self) !void {
         var buf: [32]u8 = undefined;
 
-        _ = try os.write(os.linux.STDOUT_FILENO, "\x1b[6n");
+        const tmp = "\x1b[6n";
+        _ = os.linux.write(os.linux.STDOUT_FILENO, tmp, tmp.len);
 
         for (0..buf.len - 1) |i| {
-            _ = os.read(os.linux.STDIN_FILENO, &buf) catch break;
+            _ = os.linux.read(os.linux.STDIN_FILENO, &buf, 1);
             if (buf[i] == 'R') break;
         }
 
@@ -860,7 +866,7 @@ const Editor = struct {
 
     fn setStatusMessage(self: *Self, comptime format: []const u8, args: anytype) !void {
         self.status_message.clearRetainingCapacity();
-        var buf = try std.fmt.allocPrint(self.allocator, format, args);
+        const buf = try std.fmt.allocPrint(self.allocator, format, args);
         try self.status_message.appendSlice(buf);
     }
 };
@@ -868,12 +874,12 @@ const Editor = struct {
 pub fn main() !void {
     var args = std.process.args();
     _ = args.next(); // ignore self, then read file name
-    var file_path = args.next() orelse {
+    const file_path = args.next() orelse {
         std.debug.print("Usage: gram [file_name]\n\n", .{});
         return error.NoFileName;
     };
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var allocator = gpa.allocator();
+    const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
     var editor = try Editor.init(allocator);
@@ -881,10 +887,10 @@ pub fn main() !void {
     try editor.updateWindowSize();
     try editor.open(file_path);
 
-    try editor.enableRawMode();
-    try editor.setStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find", .{});
-    while (true) {
-        try editor.refreshScreen();
-        try editor.processKeypress();
-    }
+    // try editor.enableRawMode();
+    // try editor.setStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find", .{});
+    // while (true) {
+    //     try editor.refreshScreen();
+    //     try editor.processKeypress();
+    // }
 }
