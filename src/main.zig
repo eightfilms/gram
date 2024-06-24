@@ -887,10 +887,10 @@ pub fn main() !void {
     try editor.updateWindowSize();
     try editor.open(file_path);
 
-    // try editor.enableRawMode();
-    // try editor.setStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find", .{});
-    // while (true) {
-    //     try editor.refreshScreen();
-    //     try editor.processKeypress();
-    // }
+    try editor.enableRawMode();
+    try editor.setStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find", .{});
+    while (true) {
+        try editor.refreshScreen();
+        try editor.processKeypress();
+    }
 }
