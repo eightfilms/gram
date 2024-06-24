@@ -10,7 +10,7 @@ There are some unsupported features (non-prints), but this implementation tries 
 
 ## Build
 
-Gram is built on `v0.11.0`.
+Gram is built on `v0.13.0`.
 
 ```sh
 zig build -Doptimize=ReleaseSafe
