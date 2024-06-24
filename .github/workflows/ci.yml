@@ -19,7 +19,7 @@ jobs:
           submodules: true
       - uses: goto-bus-stop/setup-zig@v1
         with:
-          version: 0.11.0
+          version: 0.13.0
 
       - name: Fmt
         run: zig fmt . --check
